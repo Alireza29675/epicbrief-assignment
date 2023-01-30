@@ -11,89 +11,53 @@ import {
   deleteDoc,
   getDoc,
 } from '@firebase/firestore';
-
 import firestore from '../../services/firestore';
 
 interface IOptions {
   sync?: boolean;
 }
 
-const transformSnapshotToData = <T extends DocumentData>(
+const transformSnapshot = <T extends DocumentData>(
   snapshot: QuerySnapshot<T>
-) => {
-  return snapshot.docs.map((doc) => {
-    return {
-      id: doc.id,
-      ...doc.data(),
-    };
-  });
-};
+) => snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
 class Collection<T extends DocumentData> {
-  // The onReady promise
-  readonly ready: Promise<void>;
-
-  // Options
   collectionName: string;
   sync: boolean;
-
-  // The data array and collection reference
+  collectionRef: CollectionReference<T>;
   _data: T[] = [];
-  collection: CollectionReference<T>;
-  _onReadyResolve: () => void = () => {
-    /* to be filled right after constructor runs */
-  };
+  readonly ready: Promise<void>;
 
   constructor(collectionName: string, { sync = true }: IOptions) {
     this.collectionName = collectionName;
     this.sync = sync;
-
-    // Create the collection reference based on the collection name
-    if (!this.collectionName) {
-      throw new Error('Collection name must be set');
-    }
-
-    this.collection = collection(
+    if (!this.collectionName) throw new Error('Collection name must be set');
+    this.collectionRef = collection(
       firestore,
       this.collectionName
     ) as CollectionReference<T>;
+    this.ready = new Promise((resolve) => this._init(resolve));
+  }
 
-    // Set up the onReady promise
-    this.ready = new Promise((resolve) => {
-      this._onReadyResolve = resolve;
-    });
-
-    // If sync is true, create a listener for the collection
+  private _init = (resolve: () => void) => {
     if (this.sync) {
-      this.initSnapshotListener();
+      this._listen(resolve);
     } else {
-      // Otherwise, just get the data once
-      this.fetch();
+      this._fetch(resolve);
     }
-  }
+  };
 
-  /**
-   * Creates a listener for the data collection
-   * and updates the data array when a change occurs
-   */
-  initSnapshotListener() {
-    onSnapshot(this.collection, (snapshot) => {
-      this._data = transformSnapshotToData(snapshot);
-
-      // Resolve the onReady promise
-      this._onReadyResolve();
+  private _listen = (resolve: () => void) => {
+    onSnapshot(this.collectionRef, (snapshot) => {
+      this._data = transformSnapshot(snapshot);
+      resolve();
     });
-  }
+  };
 
-  /**
-   * One-time fetch from the collection in Firestore
-   */
-  async fetch() {
-    const snapshot = await getDocs(this.collection);
-    this._data = transformSnapshotToData(snapshot);
-
-    // Resolve the onReady promise
-    this._onReadyResolve();
+  private async _fetch(resolve: () => void) {
+    const snapshot = await getDocs(this.collectionRef);
+    this._data = transformSnapshot(snapshot);
+    resolve();
   }
 
   get data() {
@@ -104,13 +68,13 @@ class Collection<T extends DocumentData> {
     return getDoc(doc(firestore, this.collectionName, id));
   }
 
-  // Adds a document to the Firestore collection
   async create(data: T) {
-    const doc = await addDoc(this.collection, data);
-    if (!this.sync) this._data.push({ id: doc.id, ...data });
+    const docRef = await addDoc(this.collectionRef, data);
+    if (!this.sync) {
+      this._data.push({ id: docRef.id, ...data });
+    }
   }
 
-  // Updates a document in the Firestore collection
   async update(id: string, data: Partial<T>) {
     await setDoc(doc(firestore, this.collectionName, id), data, {
       merge: true,
@@ -123,10 +87,8 @@ class Collection<T extends DocumentData> {
 
   async delete(id: string) {
     await deleteDoc(doc(firestore, this.collectionName, id));
-
-    // If sync is false, update the data array manually
     if (!this.sync) {
-      this._data = this.data.filter((item) => item.id !== id);
+      this._data = this._data.filter((item) => item.id !== id);
     }
   }
 }
@@ -137,9 +99,8 @@ export default function getCollection<T extends DocumentData>(
   collectionName: string,
   options?: IOptions
 ) {
-  if (memoizedCollections[collectionName]) {
+  if (memoizedCollections[collectionName])
     return memoizedCollections[collectionName];
-  }
 
   const collection = new Collection<T>(collectionName, options || {});
 

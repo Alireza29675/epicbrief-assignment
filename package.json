@@ -49,6 +49,7 @@
   },
   "author": "Alireza <contact@alireza.cc>",
   "dependencies": {
+    "@hubspot/api-client": "^8.4.2",
     "dotenv": "^16.0.3",
     "firebase": "^9.16.0"
   }

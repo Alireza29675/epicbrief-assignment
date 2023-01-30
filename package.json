@@ -49,6 +49,7 @@
   },
   "author": "Alireza <contact@alireza.cc>",
   "dependencies": {
-    "dotenv": "^16.0.3"
+    "dotenv": "^16.0.3",
+    "firebase": "^9.16.0"
   }
 }

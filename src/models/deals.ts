@@ -1,18 +1,10 @@
-import Collection from './utils/Collection';
+import getCollection from './utils/getCollection';
 
 interface IDeal {
-  id: string;
   name: string;
   amount: number;
 }
 
-class Deals extends Collection<IDeal> {
-  collectionName = 'deals';
+const deals = getCollection<IDeal>('deals');
 
-  constructor() {
-    super();
-    console.log(this.data);
-  }
-}
-
-export default new Deals();
+export default deals;

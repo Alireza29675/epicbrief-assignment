@@ -12,7 +12,11 @@ import {
   getDoc,
 } from '@firebase/firestore';
 
-import firestore from '@/services/firestore';
+import firestore from '../../services/firestore';
+
+interface IOptions {
+  sync?: boolean;
+}
 
 const transformSnapshotToData = <T extends DocumentData>(
   snapshot: QuerySnapshot<T>
@@ -25,16 +29,25 @@ const transformSnapshotToData = <T extends DocumentData>(
   });
 };
 
-abstract class Collection<T extends DocumentData> {
-  // Override this in the child class
-  protected collectionName = '';
-  protected sync = true;
+class Collection<T extends DocumentData> {
+  // The onReady promise
+  readonly ready: Promise<void>;
+
+  // Options
+  collectionName: string;
+  sync: boolean;
 
   // The data array and collection reference
-  private _data: T[] = [];
-  private collection: CollectionReference<T>;
+  _data: T[] = [];
+  collection: CollectionReference<T>;
+  _onReadyResolve: () => void = () => {
+    /* to be filled right after constructor runs */
+  };
 
-  constructor() {
+  constructor(collectionName: string, { sync = true }: IOptions) {
+    this.collectionName = collectionName;
+    this.sync = sync;
+
     // Create the collection reference based on the collection name
     if (!this.collectionName) {
       throw new Error('Collection name must be set');
@@ -44,6 +57,11 @@ abstract class Collection<T extends DocumentData> {
       firestore,
       this.collectionName
     ) as CollectionReference<T>;
+
+    // Set up the onReady promise
+    this.ready = new Promise((resolve) => {
+      this._onReadyResolve = resolve;
+    });
 
     // If sync is true, create a listener for the collection
     if (this.sync) {
@@ -58,9 +76,12 @@ abstract class Collection<T extends DocumentData> {
    * Creates a listener for the data collection
    * and updates the data array when a change occurs
    */
-  private initSnapshotListener() {
+  initSnapshotListener() {
     onSnapshot(this.collection, (snapshot) => {
       this._data = transformSnapshotToData(snapshot);
+
+      // Resolve the onReady promise
+      this._onReadyResolve();
     });
   }
 
@@ -70,6 +91,9 @@ abstract class Collection<T extends DocumentData> {
   async fetch() {
     const snapshot = await getDocs(this.collection);
     this._data = transformSnapshotToData(snapshot);
+
+    // Resolve the onReady promise
+    this._onReadyResolve();
   }
 
   get data() {
@@ -80,30 +104,20 @@ abstract class Collection<T extends DocumentData> {
     return getDoc(doc(firestore, this.collectionName, id));
   }
 
+  // Adds a document to the Firestore collection
   async create(data: T) {
     const doc = await addDoc(this.collection, data);
-
-    // If sync is false, update the data array manually
-    if (doc && !this.sync) {
-      this._data.push({
-        id: doc.id,
-        ...data,
-      });
-    }
+    if (!this.sync) this._data.push({ id: doc.id, ...data });
   }
 
+  // Updates a document in the Firestore collection
   async update(id: string, data: Partial<T>) {
     await setDoc(doc(firestore, this.collectionName, id), data, {
       merge: true,
     });
-
-    // If sync is false, update the data array manually
     if (!this.sync) {
-      const index = this.data.findIndex((item) => item.id === id);
-      this._data[index] = {
-        ...this._data[index],
-        ...data,
-      };
+      const index = this._data.findIndex((item) => item.id === id);
+      this._data[index] = { ...this._data[index], ...data };
     }
   }
 
@@ -117,4 +131,19 @@ abstract class Collection<T extends DocumentData> {
   }
 }
 
-export default Collection;
+const memoizedCollections: Record<string, Collection<DocumentData>> = {};
+
+export default function getCollection<T extends DocumentData>(
+  collectionName: string,
+  options?: IOptions
+) {
+  if (memoizedCollections[collectionName]) {
+    return memoizedCollections[collectionName];
+  }
+
+  const collection = new Collection<T>(collectionName, options || {});
+
+  memoizedCollections[collectionName] = collection;
+
+  return collection;
+}

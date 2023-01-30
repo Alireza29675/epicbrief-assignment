@@ -6,7 +6,6 @@
   "extends": [
     "eslint:recommended",
     "plugin:@typescript-eslint/recommended",
-    "prettier/@typescript-eslint",
     "prettier"
   ],
   "plugins": [
@@ -17,12 +16,6 @@
     "@typescript-eslint/explicit-function-return-type": "off",
     "@typescript-eslint/no-non-null-assertion": "off",
     "prettier/prettier": "error",
-    "max-len": [
-      "error",
-      {
-        "code": 120
-      }
-    ],
-    "no-console": "warn"
+    "no-console": "off"
   }
 }

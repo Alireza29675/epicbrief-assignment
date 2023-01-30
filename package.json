@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc",
     "start": "node dist/index.js",
-    "dev": "nodemon --watch 'src/**/*.ts' --exec 'echo \"Yo\"'",
+    "dev": "nodemon ./src/index.ts",
     "lint": "eslint src/**/*.ts",
     "prepare": "husky install",
     "test": "jest",
@@ -21,8 +21,11 @@
     }
   },
   "lint-staged": {
-    "*.{js,jsx,ts,tsx}": ["eslint --fix", "git add"]
-  },  
+    "*.{js,jsx,ts,tsx}": [
+      "eslint --fix",
+      "git add"
+    ]
+  },
   "devDependencies": {
     "@typescript-eslint/eslint-plugin": "^5.0.0",
     "@typescript-eslint/parser": "^5.0.0",
@@ -37,11 +40,15 @@
     "nodemon": "^2.0.20",
     "prettier": "^2.8.3",
     "ts-jest": "^29.0.5",
+    "ts-node": "^10.9.1",
     "typescript": "^4.2.3"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Alireza29675/epicbrief-assignment.git"
   },
-  "author": "Alireza <contact@alireza.cc>"
+  "author": "Alireza <contact@alireza.cc>",
+  "dependencies": {
+    "dotenv": "^16.0.3"
+  }
 }

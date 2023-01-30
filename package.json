@@ -9,6 +9,7 @@
     "start": "node dist/index.js",
     "dev": "nodemon --watch 'src/**/*.ts' --exec 'echo \"Yo\"'",
     "lint": "eslint src/**/*.ts",
+    "prepare": "husky install",
     "test": "jest",
     "test:watch": "jest --watch",
     "prettier": "prettier --write 'src/**/*.{ts,tsx}'"

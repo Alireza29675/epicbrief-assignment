@@ -1,0 +1,14 @@
+{
+  "name": "epicbrief-assignment",
+  "version": "0.0.0-development",
+  "private": true,
+  "description": "Hubspot integration with Firebase",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alireza29675/epicbrief-assignment.git"
+  },
+  "author": "Alireza <contact@alireza.cc>"
+}

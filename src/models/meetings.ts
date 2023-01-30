@@ -3,10 +3,9 @@ import getCollection from './utils/getCollection';
 
 interface IDeal {
   name: string;
-  amount: number;
   relatedTo: IRelatedTo;
 }
 
-const deals = getCollection<IDeal>('deals');
+const meetings = getCollection<IDeal>('meetings');
 
-export default deals;
+export default meetings;

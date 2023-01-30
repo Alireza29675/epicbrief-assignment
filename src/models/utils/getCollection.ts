@@ -39,7 +39,7 @@ class Collection<T extends DocumentData> {
     this.ready = new Promise((resolve) => this._init(resolve));
   }
 
-  private _init = (resolve: () => void) => {
+  _init = (resolve: () => void) => {
     if (this.sync) {
       this._listen(resolve);
     } else {
@@ -47,14 +47,14 @@ class Collection<T extends DocumentData> {
     }
   };
 
-  private _listen = (resolve: () => void) => {
+  _listen = (resolve: () => void) => {
     onSnapshot(this.collectionRef, (snapshot) => {
       this._data = transformSnapshot(snapshot);
       resolve();
     });
   };
 
-  private async _fetch(resolve: () => void) {
+  async _fetch(resolve: () => void) {
     const snapshot = await getDocs(this.collectionRef);
     this._data = transformSnapshot(snapshot);
     resolve();

@@ -93,6 +93,8 @@ export class Collection<T extends DocumentData> {
     if (!this.sync) {
       this._data.push({ id: docRef.id, ...dataWithDates });
     }
+
+    return docRef.id;
   }
 
   async update(id: string, data: Partial<T>) {

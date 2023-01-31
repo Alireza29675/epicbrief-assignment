@@ -60,14 +60,20 @@ class Integration<T extends DocumentData> {
     }
 
     for (const serviceItem of serviceItems) {
-      const { id, ...data } = serviceItem;
+      const { id, _updatedAt, ...data } = serviceItem;
       const existingIntegration = existingIntegrations.find(
         (integration) => integration.idInService === id
       );
 
       if (!existingIntegration) {
         // This item needs to be pushed to firebase
-        console.log('pushing to firebase', data);
+        const idInFirebase = await this.model.create(data as unknown as T);
+
+        await integrations.create({
+          idInFirebase,
+          idInService: id,
+          service: this.service.name,
+        });
       } else {
         // This item needs to be compared and updated if needed
       }

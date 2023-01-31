@@ -1,9 +1,10 @@
 import getCollection from './utils/getCollection';
 
-interface IDeal {
-  name: string;
+interface IMeeting {
+  summary: string;
+  body: string;
 }
 
-const meetings = getCollection<IDeal>('meetings');
+const meetings = getCollection<IMeeting>('meetings');
 
 export default meetings;

@@ -7,18 +7,20 @@ import meetings from './models/meetings';
 
 // This is the main function that will be called by the cron job
 const main = async () => {
+  // Syncing and summarizing new meetings every 10 seconds
+  //// NOTE: This is just for testing purposes, the correct way
+  //// to do this is to use a proper cron job or webhooks which
+  //// trigger the sync functions
+  setInterval(cron, 10_000);
+};
+
+const cron = async () => {
   // Syncing with Hubspot at the beginning
   await meetingsIntegration.sync();
   await dealsIntegration.sync();
 
-  // Summarizing new meetings every 10 seconds
-  setInterval(async () => {
-    // Adding summaries to all meetings
-    await addSummaryToAllMeetingsWithoutSummary();
-
-    // Syncing the meetings with Hubspot
-    await meetingsIntegration.sync();
-  }, 10_000);
+  // Adding summaries to all meetings
+  await addSummaryToAllMeetingsWithoutSummary();
 };
 
 main();

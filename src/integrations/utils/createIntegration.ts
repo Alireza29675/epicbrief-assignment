@@ -91,6 +91,7 @@ class Integration<T extends DocumentData> {
     // Loop through each service item
     for (const serviceItem of serviceItems) {
       // Destructure the id, _updatedAt, and data from the service item
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const { id, _updatedAt, ...data } = serviceItem;
 
       // Check if the service item has an existing integration with the service
@@ -160,10 +161,14 @@ class Integration<T extends DocumentData> {
 
       if (firebaseItem._updatedAt > serviceItem._updatedAt) {
         // Update the service item
-        await this.service.update(serviceItem.id, firebaseItem);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, _updatedAt, ...data } = firebaseItem;
+        await this.service.update(serviceItem.id, data as unknown as T);
       } else {
         // Update the firebase item
-        await this.model.update(firebaseItem.id, serviceItem);
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { id, _updatedAt, ...data } = serviceItem;
+        await this.model.update(firebaseItem.id, data as unknown as T);
       }
 
       // Update integration with the updatedAt field set to the current time

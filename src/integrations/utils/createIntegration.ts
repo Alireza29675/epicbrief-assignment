@@ -20,10 +20,16 @@ export interface IService<T extends DocumentData> {
 class Integration<T extends DocumentData> {
   model: Collection<T>;
   service: IService<T>;
+  logEnabled = true;
 
   constructor(model: Collection<T>, service: IService<T>) {
     this.model = model;
     this.service = service;
+  }
+
+  log(message: string, ...args: unknown[]) {
+    if (!this.logEnabled) return;
+    console.log(`${this.model.collectionName}: ${message}`, ...args);
   }
 
   async sync() {
@@ -57,6 +63,8 @@ class Integration<T extends DocumentData> {
       if (!existingIntegration) {
         if (!this.service.create) continue;
 
+        this.log(`Create in ${this.service.name}`, data);
+
         const idInService = await this.service.create(data);
         await integrations.create({
           idInFirebase: id,
@@ -86,6 +94,8 @@ class Integration<T extends DocumentData> {
       }
 
       // If the service item doesn't exist, delete the integration and firebase item
+      this.log(`Delete from firebase`, id);
+
       await this.model.delete(id);
       await integrations.delete(existingIntegration.id);
     }
@@ -103,6 +113,8 @@ class Integration<T extends DocumentData> {
 
       // If there is no existing integration, create one in firebase
       if (!existingIntegration) {
+        this.log(`Create in firebase`, data);
+
         // Create the item in firebase
         const idInFirebase = await this.model.create(data as unknown as T);
 
@@ -136,6 +148,8 @@ class Integration<T extends DocumentData> {
           // delete the item from the service and the integration record
           if (!this.service.delete) continue;
 
+          this.log(`Delete from ${this.service.name}`, id);
+
           await this.service.delete(id);
           await integrations.delete(existingIntegration.id);
         }
@@ -166,11 +180,15 @@ class Integration<T extends DocumentData> {
       if (firebaseItem._updatedAt > serviceItem._updatedAt) {
         if (!this.service.update) continue;
 
+        this.log(`Update in ${this.service.name}`, firebaseItem);
+
         // Update the service item
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, _updatedAt, ...data } = firebaseItem;
         await this.service.update(serviceItem.id, data as unknown as T);
       } else {
+        this.log(`Update in firebase`, serviceItem);
+
         // Update the firebase item
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, _updatedAt, ...data } = serviceItem;

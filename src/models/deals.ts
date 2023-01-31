@@ -1,12 +1,10 @@
-import { IRelatedTo } from './types';
-import getCollection from './utils/getCollection';
+import getCollection, { Collection } from './utils/getCollection';
 
 interface IDeal {
   name: string;
   amount: number;
-  relatedTo: IRelatedTo;
 }
 
-const deals = getCollection<IDeal>('deals');
+const deals = getCollection<IDeal>('deals') as Collection<IDeal>;
 
 export default deals;

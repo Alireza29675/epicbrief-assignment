@@ -21,11 +21,11 @@ const transformSnapshot = <T extends DocumentData>(
   snapshot: QuerySnapshot<T>
 ) => snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
 
-class Collection<T extends DocumentData> {
+export class Collection<T extends DocumentData> {
   collectionName: string;
   sync: boolean;
   collectionRef: CollectionReference<T>;
-  _data: T[] = []; // private variable to store the data
+  _data: Array<T & { id: string }> = []; // private variable to store the data
   readonly ready: Promise<void>; // promise to wait for data to be initialized
 
   constructor(collectionName: string, { sync = true }: IOptions) {

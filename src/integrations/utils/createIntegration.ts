@@ -1,3 +1,5 @@
+import integrations from '@/models/integrations';
+
 import { Collection } from '@/models/utils/getCollection';
 import { DocumentData } from 'firebase/firestore';
 
@@ -33,21 +35,44 @@ class Integration<T extends DocumentData> {
   async sync() {
     // Wait for the model to be ready and get the data
     await this.model.ready;
-    const firebaseItems = this.model.data.map(({ id, _updatedAt }) => ({
-      id,
-      _updatedAt,
-    }));
+    const firebaseItems = this.model.data;
 
     // Fetch from service
-    const serviceItems = (await this.fetchFromService()).map(
-      ({ id, _updatedAt }) => ({
-        id,
-        _updatedAt,
-      })
+    const serviceItems = await this.fetchFromService();
+
+    // Waiting for integration to be ready
+    await integrations.ready;
+    const existingIntegrations = integrations.data.filter(
+      (integration) => integration.service === this.service
     );
 
-    console.log('firebaseItems', firebaseItems);
-    console.log('serviceItems', serviceItems);
+    for (const firebaseItem of firebaseItems) {
+      const { id, ...data } = firebaseItem;
+      const existingIntegration = existingIntegrations.find(
+        (integration) => integration.idInFirebase === id
+      );
+
+      if (!existingIntegration) {
+        // This item needs to be pushed to the service
+        console.log('pushing to service ->', data);
+      } else {
+        // This item needs to be compared and updated if needed
+      }
+    }
+
+    for (const serviceItem of serviceItems) {
+      const { id, ...data } = serviceItem;
+      const existingIntegration = existingIntegrations.find(
+        (integration) => integration.idInService === id
+      );
+
+      if (!existingIntegration) {
+        // This item needs to be pushed to firebase
+        console.log('pushing to firebase ->', data);
+      } else {
+        // This item needs to be compared and updated if needed
+      }
+    }
   }
 }
 

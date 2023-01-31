@@ -3,33 +3,26 @@ import integrations from '@/models/integrations';
 import { Collection } from '@/models/utils/getCollection';
 import { DocumentData } from 'firebase/firestore';
 
-type TFetchFromService = () => Promise<
-  Array<
-    unknown & {
-      id: string;
-      _updatedAt: number;
-    }
-  >
->;
+interface IStandardServiceData {
+  [key: string]: unknown;
+  id: string;
+  _updatedAt: number;
+}
 
-type TPushToService = () => Promise<any>;
+// This is the definition of service that we will use to integrate with
+interface IService<T extends DocumentData> {
+  name: string;
+  fetch: () => Promise<IStandardServiceData[]>;
+  push: (data: Omit<T, 'id'>) => Promise<void>;
+}
 
 class Integration<T extends DocumentData> {
-  service: string;
   model: Collection<T>;
-  fetchFromService: TFetchFromService;
-  pushToService: TPushToService;
+  service: IService<T>;
 
-  constructor(
-    service: string,
-    model: Collection<T>,
-    fetchFromService: TFetchFromService,
-    pushToService: TPushToService
-  ) {
-    this.service = service;
+  constructor(model: Collection<T>, service: IService<T>) {
     this.model = model;
-    this.fetchFromService = fetchFromService;
-    this.pushToService = pushToService;
+    this.service = service;
   }
 
   async sync() {
@@ -38,12 +31,12 @@ class Integration<T extends DocumentData> {
     const firebaseItems = this.model.data;
 
     // Fetch from service
-    const serviceItems = await this.fetchFromService();
+    const serviceItems = await this.service.fetch();
 
     // Waiting for integration to be ready
     await integrations.ready;
     const existingIntegrations = integrations.data.filter(
-      (integration) => integration.service === this.service
+      (integration) => integration.service === this.service.name
     );
 
     for (const firebaseItem of firebaseItems) {
@@ -54,7 +47,7 @@ class Integration<T extends DocumentData> {
 
       if (!existingIntegration) {
         // This item needs to be pushed to the service
-        console.log('pushing to service ->', data);
+        this.service.push(data);
       } else {
         // This item needs to be compared and updated if needed
       }
@@ -78,14 +71,10 @@ class Integration<T extends DocumentData> {
 
 export default function createIntegrations<T extends DocumentData>({
   model,
-  service: { name, fetch: fetchFromService, push: pushToService },
+  service,
 }: {
   model: Collection<T>;
-  service: {
-    name: string;
-    fetch: TFetchFromService;
-    push: TPushToService;
-  };
+  service: IService<T>;
 }) {
-  return new Integration(name, model, fetchFromService, pushToService);
+  return new Integration(model, service);
 }

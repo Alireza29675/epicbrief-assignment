@@ -5,18 +5,17 @@ const dealsIntegration = createIntegrations({
   model: deals,
   service: {
     name: 'hubspot/deals',
-    fetch: () => {
-      console.log('fetching from hubspot');
-      return Promise.resolve([
+    fetch: async () => {
+      return [
         {
+          name: 'a',
           id: '1',
           _updatedAt: 123,
         },
-      ]);
+      ];
     },
-    push: () => {
-      console.log('pushing to hubspot');
-      return Promise.resolve([]);
+    push: async (deal) => {
+      console.log('pushing to hubspot', deal);
     },
   },
 });

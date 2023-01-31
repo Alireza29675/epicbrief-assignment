@@ -1,8 +1,9 @@
 import getCollection, { Collection } from './utils/getCollection';
 
-interface IDeal {
-  name: string;
+export interface IDeal {
   amount: number;
+  name: string;
+  stage: string;
 }
 
 const deals = getCollection<IDeal>('deals') as Collection<IDeal>;

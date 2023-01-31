@@ -3,17 +3,18 @@ import integrations from '@/models/integrations';
 import { Collection } from '@/models/utils/getCollection';
 import { DocumentData } from 'firebase/firestore';
 
-interface IStandardServiceData {
-  [key: string]: unknown;
+type TStandardServiceData<T> = T & {
   id: string;
   _updatedAt: number;
-}
+};
 
 // This is the definition of service that we will use to integrate with
 interface IService<T extends DocumentData> {
   name: string;
-  fetch: () => Promise<IStandardServiceData[]>;
-  push: (data: Omit<T, 'id'>) => Promise<void>;
+  fetch: () => Promise<TStandardServiceData<T>[]>;
+  create: (data: Omit<T, 'id'>) => Promise<string>;
+  update: (id: string, data: Omit<T, 'id'>) => Promise<void>;
+  delete: (id: string) => Promise<void>;
 }
 
 class Integration<T extends DocumentData> {
@@ -46,8 +47,13 @@ class Integration<T extends DocumentData> {
       );
 
       if (!existingIntegration) {
-        // This item needs to be pushed to the service
-        this.service.push(data);
+        // This item needs to be created in the service
+        const idInService = await this.service.create(data);
+        await integrations.create({
+          idInFirebase: id,
+          idInService,
+          service: this.service.name,
+        });
       } else {
         // This item needs to be compared and updated if needed
       }
@@ -61,7 +67,7 @@ class Integration<T extends DocumentData> {
 
       if (!existingIntegration) {
         // This item needs to be pushed to firebase
-        console.log('pushing to firebase ->', data);
+        console.log('pushing to firebase', data);
       } else {
         // This item needs to be compared and updated if needed
       }

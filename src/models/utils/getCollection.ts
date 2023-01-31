@@ -14,7 +14,7 @@ import {
 import firestore from '../../services/firestore';
 
 interface IOptions {
-  sync?: boolean;
+  sync?: boolean; // if sync is set to true, it will listen to changes
 }
 
 const transformSnapshot = <T extends DocumentData>(
@@ -25,17 +25,21 @@ class Collection<T extends DocumentData> {
   collectionName: string;
   sync: boolean;
   collectionRef: CollectionReference<T>;
-  _data: T[] = [];
-  readonly ready: Promise<void>;
+  _data: T[] = []; // private variable to store the data
+  readonly ready: Promise<void>; // promise to wait for data to be initialized
 
   constructor(collectionName: string, { sync = true }: IOptions) {
     this.collectionName = collectionName;
     this.sync = sync;
     if (!this.collectionName) throw new Error('Collection name must be set');
+
+    // Create a reference to the collection in firestore
     this.collectionRef = collection(
       firestore,
       this.collectionName
     ) as CollectionReference<T>;
+
+    // To be used as collection.ready.then(() => ...)
     this.ready = new Promise((resolve) => this._init(resolve));
   }
 
@@ -93,17 +97,21 @@ class Collection<T extends DocumentData> {
   }
 }
 
+// Memoize collections to avoid creating multiple instances of the same collection
 const memoizedCollections: Record<string, Collection<DocumentData>> = {};
 
 export default function getCollection<T extends DocumentData>(
   collectionName: string,
   options?: IOptions
 ) {
+  // Return memoized collection if it exists
   if (memoizedCollections[collectionName])
     return memoizedCollections[collectionName];
 
+  // Create new collection if it doesn't exist yet
   const collection = new Collection<T>(collectionName, options || {});
 
+  // and memoize it
   memoizedCollections[collectionName] = collection;
 
   return collection;

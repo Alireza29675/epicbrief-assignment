@@ -36,8 +36,8 @@ const dummySummarizer = (body: string) => {
 
 const addSummaryToAllMeetingsWithoutSummary = async () => {
   for (const meeting of meetings.data) {
-    // If the meeting has no summary, we need to generate one
-    if (!meeting.summary.trim()) {
+    // If the meeting has a body but no summary, we need to generate one
+    if (meeting.body.trim() && !meeting.summary.trim()) {
       // This is the dummy summarizer
       const summary = dummySummarizer(meeting.body);
 

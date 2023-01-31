@@ -20,7 +20,7 @@ export interface IService<T extends DocumentData> {
 class Integration<T extends DocumentData> {
   model: Collection<T>;
   service: IService<T>;
-  logEnabled = true;
+  logEnabled = false;
 
   constructor(model: Collection<T>, service: IService<T>) {
     this.model = model;

@@ -27,32 +27,34 @@ class Integration<T extends DocumentData> {
   }
 
   async sync() {
-    // Wait for the model to be ready and get the data
+    // Wait for the model to be ready and fetch its data
     await this.model.ready;
     const firebaseItems = this.model.data as TStandardServiceData<T>[];
 
-    // Fetch from service
+    // Fetch items from the service
     const serviceItems = await this.service.fetch();
 
-    // Waiting for integration to be ready
+    // Wait for the integrations to be ready and filter existing ones
     await integrations.ready;
     const existingIntegrations = integrations.data.filter(
       (integration) => integration.service === this.service.name
     );
 
+    // Store firebase and service items that need to be compared and synced
     const syncedItemsToCheck: {
       firebaseItem: TStandardServiceData<T>;
       serviceItem: TStandardServiceData<T>;
     }[] = [];
 
+    // Check each firebase item
     for (const firebaseItem of firebaseItems) {
       const { id, ...data } = firebaseItem;
       const existingIntegration = existingIntegrations.find(
         (integration) => integration.idInFirebase === id
       );
 
+      // If the firebase item doesn't have an integration, create it in the service
       if (!existingIntegration) {
-        // This item needs to be created in the service
         const idInService = await this.service.create(data);
         await integrations.create({
           idInFirebase: id,
@@ -62,101 +64,100 @@ class Integration<T extends DocumentData> {
         continue;
       }
 
-      // Try to find the paired item in serviceItems
+      // Check if the paired service item exists
       const serviceItem = serviceItems.find(
         (item) => item.id === existingIntegration.idInService
       );
 
-      // If both items are found, add them to syncedItemsToCheck array
-      // to be compared later
+      // If both firebase and service items exist, add them to syncedItemsToCheck
       if (serviceItem) {
-        // Check if the item is already in syncedItemsToCheck array
-        const isAlreadyInSyncedItemsToCheck = syncedItemsToCheck.some(
-          (item) =>
-            item.firebaseItem.id === firebaseItem.id &&
-            item.serviceItem.id === existingIntegration.idInService
-        );
-
-        if (!isAlreadyInSyncedItemsToCheck) {
+        if (
+          !syncedItemsToCheck.some(
+            (item) =>
+              item.firebaseItem.id === firebaseItem.id &&
+              item.serviceItem.id === serviceItem.id
+          )
+        ) {
           syncedItemsToCheck.push({ firebaseItem, serviceItem });
         }
         continue;
       }
 
-      // If the item has an integration but it's not in serviceItems,
-      // it means that the item was deleted from the service and we need
-      // to delete it from firebase
+      // If the service item doesn't exist, delete the integration and firebase item
       await this.model.delete(id);
       await integrations.delete(existingIntegration.id);
     }
 
+    // Loop through each service item
     for (const serviceItem of serviceItems) {
+      // Destructure the id, _updatedAt, and data from the service item
       const { id, _updatedAt, ...data } = serviceItem;
+
+      // Check if the service item has an existing integration with the service
       const existingIntegration = existingIntegrations.find(
         (integration) => integration.idInService === id
       );
 
+      // If there is no existing integration, create one in firebase
       if (!existingIntegration) {
-        // This item needs to be pushed to firebase
+        // Create the item in firebase
         const idInFirebase = await this.model.create(data as unknown as T);
 
+        // Create the integration record
         await integrations.create({
           idInFirebase,
           idInService: id,
           service: this.service.name,
         });
-
-        continue;
-      }
-
-      // Try to find the paired item in firebaseItems
-      const firebaseItem = firebaseItems.find(
-        (item) => item.id === existingIntegration.idInFirebase
-      );
-
-      // If both items are found, add them to syncedItemsToCheck array
-      // to be compared later
-      if (firebaseItem) {
-        // Check if the item is already in syncedItemsToCheck array
-        const isAlreadyInSyncedItemsToCheck = syncedItemsToCheck.some(
-          (item) =>
-            item.firebaseItem.id === existingIntegration.idInFirebase &&
-            item.serviceItem.id === serviceItem.id
+      } else {
+        // If the item has an existing integration, find the paired item in firebase
+        const firebaseItem = firebaseItems.find(
+          (item) => item.id === existingIntegration.idInFirebase
         );
 
-        if (!isAlreadyInSyncedItemsToCheck) {
-          syncedItemsToCheck.push({ firebaseItem, serviceItem });
-        }
-        continue;
-      }
+        // If the paired firebase item exists, add it to the synced items to check array
+        if (firebaseItem) {
+          // Check if the item is already in syncedItemsToCheck
+          const isAlreadyInSyncedItemsToCheck = syncedItemsToCheck.some(
+            (item) =>
+              item.firebaseItem.id === existingIntegration.idInFirebase &&
+              item.serviceItem.id === serviceItem.id
+          );
 
-      // If the item has an integration but it's not in firebaseItems,
-      // it means that the item was deleted from firebase and we need
-      // to delete it from the service
-      await this.service.delete(id);
-      await integrations.delete(existingIntegration.id);
+          // If it's not already in the array, add it
+          if (!isAlreadyInSyncedItemsToCheck) {
+            syncedItemsToCheck.push({ firebaseItem, serviceItem });
+          }
+        } else {
+          // If the item has an integration but the paired item in firebase was deleted,
+          // delete the item from the service and the integration record
+          await this.service.delete(id);
+          await integrations.delete(existingIntegration.id);
+        }
+      }
     }
 
-    // Compare the syncedItemsToCheck array and update the items to the newer version
+    // Compare the `syncedItemsToCheck` array and update the items to the newer version.
     for (const { firebaseItem, serviceItem } of syncedItemsToCheck) {
       const integrationItem = existingIntegrations.find(
         (integration) =>
           integration.idInFirebase === firebaseItem.id &&
           integration.idInService === serviceItem.id
-      )!;
+      );
 
+      // If integrationItem is not found, skip to the next iteration
+      if (!integrationItem) {
+        continue;
+      }
+
+      // Check if the integration item is newer than both firebase and service items
       if (
         integrationItem._updatedAt > firebaseItem._updatedAt &&
         integrationItem._updatedAt > serviceItem._updatedAt
       ) {
-        // Check if the integration item is newer than both firebase and service items.
-        // If it is then we don't need to update anything
         continue;
       }
 
-      // If one or two of the items are newer than the integration item,
-      // we need to update the items to the newer version
-      // and update integration.updatedAt to the current time:
       if (firebaseItem._updatedAt > serviceItem._updatedAt) {
         // Update the service item
         await this.service.update(serviceItem.id, firebaseItem);
@@ -165,17 +166,19 @@ class Integration<T extends DocumentData> {
         await this.model.update(firebaseItem.id, serviceItem);
       }
 
+      // Update integration with the updatedAt field set to the current time
       await integrations.update(integrationItem.id, {});
     }
   }
 }
 
-export default function createIntegrations<T extends DocumentData>({
-  model,
-  service,
-}: {
+// Function that creates integrations using a provided model and service
+export default function createIntegrations<T extends DocumentData>(options: {
   model: Collection<T>;
   service: IService<T>;
-}) {
-  return new Integration(model, service);
+}): Integration<T> {
+  // Destructure the options object to get the model and service
+  const { model, service } = options;
+  // Return a new instance of Integration with the provided model and service
+  return new Integration<T>(model, service);
 }

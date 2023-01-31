@@ -51,6 +51,7 @@
   "dependencies": {
     "@hubspot/api-client": "^8.4.2",
     "dotenv": "^16.0.3",
-    "firebase": "^9.16.0"
+    "firebase": "^9.16.0",
+    "html-to-text": "^9.0.3"
   }
 }

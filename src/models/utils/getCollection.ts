@@ -11,12 +11,22 @@ import {
   deleteDoc,
   getDoc,
 } from '@firebase/firestore';
-import firestore from '../../services/firestore';
+import firestore from '@/services/firestore';
 
+// This interface is used to pass options when creating a collection
 interface IOptions {
   sync?: boolean; // if sync is set to true, it will listen to changes
 }
 
+// This interface is used to add any additional metadata to the data returned by the firestore
+export interface IAdditionalMetadata {
+  id: string;
+  _createdAt: number;
+  _updatedAt: number;
+}
+
+// This function is used to transform the snapshot returned by firestore
+// into an array of objects so we can put in `_data`
 const transformSnapshot = <T extends DocumentData>(
   snapshot: QuerySnapshot<T>
 ) => snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -24,8 +34,8 @@ const transformSnapshot = <T extends DocumentData>(
 export class Collection<T extends DocumentData> {
   collectionName: string;
   sync: boolean;
-  collectionRef: CollectionReference<T>;
-  _data: Array<T & { id: string }> = []; // private variable to store the data
+  collectionRef: CollectionReference<T & IAdditionalMetadata>;
+  _data: Array<T & IAdditionalMetadata> = []; // private variable to store the data
   readonly ready: Promise<void>; // promise to wait for data to be initialized
 
   constructor(collectionName: string, { sync = true }: IOptions) {
@@ -37,7 +47,7 @@ export class Collection<T extends DocumentData> {
     this.collectionRef = collection(
       firestore,
       this.collectionName
-    ) as CollectionReference<T>;
+    ) as CollectionReference<T & IAdditionalMetadata>;
 
     // To be used as collection.ready.then(() => ...)
     this.ready = new Promise((resolve) => this._init(resolve));
@@ -73,19 +83,32 @@ export class Collection<T extends DocumentData> {
   }
 
   async create(data: T) {
-    const docRef = await addDoc(this.collectionRef, data);
+    const dataWithDates = {
+      ...data,
+      _createdAt: Date.now(),
+      _updatedAt: Date.now(),
+    };
+
+    const docRef = await addDoc(this.collectionRef, dataWithDates);
     if (!this.sync) {
-      this._data.push({ id: docRef.id, ...data });
+      this._data.push({ id: docRef.id, ...dataWithDates });
     }
   }
 
   async update(id: string, data: Partial<T>) {
-    await setDoc(doc(firestore, this.collectionName, id), data, {
+    const updatedData = {
+      ...data,
+      _updatedAt: Date.now(),
+    };
+    await setDoc(doc(firestore, this.collectionName, id), updatedData, {
       merge: true,
     });
     if (!this.sync) {
       const index = this._data.findIndex((item) => item.id === id);
-      this._data[index] = { ...this._data[index], ...data };
+      this._data[index] = {
+        ...this._data[index],
+        ...updatedData,
+      };
     }
   }
 

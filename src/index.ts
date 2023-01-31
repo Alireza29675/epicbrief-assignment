@@ -1,3 +1,7 @@
 // Loading the environment variables before anything else
 import './loadEnv';
-import './integrations/hubspot/syncDeals';
+import dealsIntegration from './integrations/hubspot/deals';
+
+setInterval(() => {
+  dealsIntegration.sync();
+}, 10_000);

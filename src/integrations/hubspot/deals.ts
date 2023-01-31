@@ -54,4 +54,4 @@ const dealsIntegration = createIntegrations({
   },
 });
 
-dealsIntegration.sync();
+export default dealsIntegration;

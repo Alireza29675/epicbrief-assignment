@@ -9,7 +9,7 @@ type TStandardServiceData<T> = T & {
 };
 
 // This is the definition of service that we will use to integrate with
-interface IService<T extends DocumentData> {
+export interface IService<T extends DocumentData> {
   name: string;
   fetch: () => Promise<TStandardServiceData<T>[]>;
   create: (data: Omit<T, 'id'>) => Promise<string>;
@@ -137,7 +137,36 @@ class Integration<T extends DocumentData> {
       await integrations.delete(existingIntegration.id);
     }
 
-    console.log('syncedItemsToCheck', syncedItemsToCheck);
+    // Compare the syncedItemsToCheck array and update the items to the newer version
+    for (const { firebaseItem, serviceItem } of syncedItemsToCheck) {
+      const integrationItem = existingIntegrations.find(
+        (integration) =>
+          integration.idInFirebase === firebaseItem.id &&
+          integration.idInService === serviceItem.id
+      )!;
+
+      if (
+        integrationItem._updatedAt > firebaseItem._updatedAt &&
+        integrationItem._updatedAt > serviceItem._updatedAt
+      ) {
+        // Check if the integration item is newer than both firebase and service items.
+        // If it is then we don't need to update anything
+        continue;
+      }
+
+      // If one or two of the items are newer than the integration item,
+      // we need to update the items to the newer version
+      // and update integration.updatedAt to the current time:
+      if (firebaseItem._updatedAt > serviceItem._updatedAt) {
+        // Update the service item
+        await this.service.update(serviceItem.id, firebaseItem);
+      } else {
+        // Update the firebase item
+        await this.model.update(firebaseItem.id, serviceItem);
+      }
+
+      await integrations.update(integrationItem.id, {});
+    }
   }
 }
 

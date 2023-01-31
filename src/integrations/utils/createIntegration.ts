@@ -12,9 +12,9 @@ type TStandardServiceData<T> = T & {
 export interface IService<T extends DocumentData> {
   name: string;
   fetch: () => Promise<TStandardServiceData<T>[]>;
-  create: (data: Omit<T, 'id'>) => Promise<string>;
-  update: (id: string, data: Omit<T, 'id'>) => Promise<void>;
-  delete: (id: string) => Promise<void>;
+  create?: (data: Omit<T, 'id'>) => Promise<string>;
+  update?: (id: string, data: Omit<T, 'id'>) => Promise<void>;
+  delete?: (id: string) => Promise<void>;
 }
 
 class Integration<T extends DocumentData> {
@@ -55,6 +55,8 @@ class Integration<T extends DocumentData> {
 
       // If the firebase item doesn't have an integration, create it in the service
       if (!existingIntegration) {
+        if (!this.service.create) continue;
+
         const idInService = await this.service.create(data);
         await integrations.create({
           idInFirebase: id,
@@ -132,6 +134,8 @@ class Integration<T extends DocumentData> {
         } else {
           // If the item has an integration but the paired item in firebase was deleted,
           // delete the item from the service and the integration record
+          if (!this.service.delete) continue;
+
           await this.service.delete(id);
           await integrations.delete(existingIntegration.id);
         }
@@ -160,6 +164,8 @@ class Integration<T extends DocumentData> {
       }
 
       if (firebaseItem._updatedAt > serviceItem._updatedAt) {
+        if (!this.service.update) continue;
+
         // Update the service item
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { id, _updatedAt, ...data } = firebaseItem;

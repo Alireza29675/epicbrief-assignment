@@ -29,7 +29,7 @@ class Integration<T extends DocumentData> {
   async sync() {
     // Wait for the model to be ready and get the data
     await this.model.ready;
-    const firebaseItems = this.model.data;
+    const firebaseItems = this.model.data as TStandardServiceData<T>[];
 
     // Fetch from service
     const serviceItems = await this.service.fetch();
@@ -39,6 +39,11 @@ class Integration<T extends DocumentData> {
     const existingIntegrations = integrations.data.filter(
       (integration) => integration.service === this.service.name
     );
+
+    const syncedItemsToCheck: {
+      firebaseItem: TStandardServiceData<T>;
+      serviceItem: TStandardServiceData<T>;
+    }[] = [];
 
     for (const firebaseItem of firebaseItems) {
       const { id, ...data } = firebaseItem;
@@ -54,9 +59,35 @@ class Integration<T extends DocumentData> {
           idInService,
           service: this.service.name,
         });
-      } else {
-        // This item needs to be compared and updated if needed
+        continue;
       }
+
+      // Try to find the paired item in serviceItems
+      const serviceItem = serviceItems.find(
+        (item) => item.id === existingIntegration.idInService
+      );
+
+      // If both items are found, add them to syncedItemsToCheck array
+      // to be compared later
+      if (serviceItem) {
+        // Check if the item is already in syncedItemsToCheck array
+        const isAlreadyInSyncedItemsToCheck = syncedItemsToCheck.some(
+          (item) =>
+            item.firebaseItem.id === firebaseItem.id &&
+            item.serviceItem.id === existingIntegration.idInService
+        );
+
+        if (!isAlreadyInSyncedItemsToCheck) {
+          syncedItemsToCheck.push({ firebaseItem, serviceItem });
+        }
+        continue;
+      }
+
+      // If the item has an integration but it's not in serviceItems,
+      // it means that the item was deleted from the service and we need
+      // to delete it from firebase
+      await this.model.delete(id);
+      await integrations.delete(existingIntegration.id);
     }
 
     for (const serviceItem of serviceItems) {
@@ -74,10 +105,39 @@ class Integration<T extends DocumentData> {
           idInService: id,
           service: this.service.name,
         });
-      } else {
-        // This item needs to be compared and updated if needed
+
+        continue;
       }
+
+      // Try to find the paired item in firebaseItems
+      const firebaseItem = firebaseItems.find(
+        (item) => item.id === existingIntegration.idInFirebase
+      );
+
+      // If both items are found, add them to syncedItemsToCheck array
+      // to be compared later
+      if (firebaseItem) {
+        // Check if the item is already in syncedItemsToCheck array
+        const isAlreadyInSyncedItemsToCheck = syncedItemsToCheck.some(
+          (item) =>
+            item.firebaseItem.id === existingIntegration.idInFirebase &&
+            item.serviceItem.id === serviceItem.id
+        );
+
+        if (!isAlreadyInSyncedItemsToCheck) {
+          syncedItemsToCheck.push({ firebaseItem, serviceItem });
+        }
+        continue;
+      }
+
+      // If the item has an integration but it's not in firebaseItems,
+      // it means that the item was deleted from firebase and we need
+      // to delete it from the service
+      await this.service.delete(id);
+      await integrations.delete(existingIntegration.id);
     }
+
+    console.log('syncedItemsToCheck', syncedItemsToCheck);
   }
 }
 

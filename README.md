@@ -1,4 +1,6 @@
+<p>&nbsp;</p>
 <p align="center" style="margin: 3rem"><img src="https://user-images.githubusercontent.com/2771377/216113406-ab201265-51a1-45af-9c27-401a0665122b.png" width="400" /></p>
+<p>&nbsp;</p>
 
 # Technical Documentation - Task One
 

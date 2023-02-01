@@ -17,7 +17,7 @@ export interface IService<T extends DocumentData> {
   delete?: (id: string) => Promise<void>;
 }
 
-class Integration<T extends DocumentData> {
+export class Integration<T extends DocumentData> {
   model: Collection<T>;
   service: IService<T>;
   logEnabled = false;

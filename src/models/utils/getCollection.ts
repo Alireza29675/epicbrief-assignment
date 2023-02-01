@@ -26,7 +26,7 @@ export interface IAdditionalMetadata {
 }
 
 // This function is used to transform the snapshot returned by firestore
-// into an array of objects so we can put in `_data`
+// into an array of objects so we can put in `data`
 const transformSnapshot = <T extends DocumentData>(
   snapshot: QuerySnapshot<T>
 ) => snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
@@ -35,7 +35,7 @@ export class Collection<T extends DocumentData> {
   collectionName: string;
   sync: boolean;
   collectionRef: CollectionReference<T & IAdditionalMetadata>;
-  _data: Array<T & IAdditionalMetadata> = []; // private variable to store the data
+  data: Array<T & IAdditionalMetadata> = []; // private variable to store the data
   readonly ready: Promise<void>; // promise to wait for data to be initialized
 
   constructor(collectionName: string, { sync = true }: IOptions) {
@@ -63,19 +63,15 @@ export class Collection<T extends DocumentData> {
 
   _listen = (resolve: () => void) => {
     onSnapshot(this.collectionRef, (snapshot) => {
-      this._data = transformSnapshot(snapshot);
+      this.data = transformSnapshot(snapshot);
       resolve();
     });
   };
 
   async _fetch(resolve: () => void) {
     const snapshot = await getDocs(this.collectionRef);
-    this._data = transformSnapshot(snapshot);
+    this.data = transformSnapshot(snapshot);
     resolve();
-  }
-
-  get data() {
-    return this._data;
   }
 
   async get(id: string) {
@@ -91,7 +87,7 @@ export class Collection<T extends DocumentData> {
 
     const docRef = await addDoc(this.collectionRef, dataWithDates);
     if (!this.sync) {
-      this._data.push({ id: docRef.id, ...dataWithDates });
+      this.data.push({ id: docRef.id, ...dataWithDates });
     }
 
     return docRef.id;
@@ -106,9 +102,9 @@ export class Collection<T extends DocumentData> {
       merge: true,
     });
     if (!this.sync) {
-      const index = this._data.findIndex((item) => item.id === id);
-      this._data[index] = {
-        ...this._data[index],
+      const index = this.data.findIndex((item) => item.id === id);
+      this.data[index] = {
+        ...this.data[index],
         ...updatedData,
       };
     }
@@ -117,7 +113,7 @@ export class Collection<T extends DocumentData> {
   async delete(id: string) {
     await deleteDoc(doc(firestore, this.collectionName, id));
     if (!this.sync) {
-      this._data = this._data.filter((item) => item.id !== id);
+      this.data = this.data.filter((item) => item.id !== id);
     }
   }
 }
